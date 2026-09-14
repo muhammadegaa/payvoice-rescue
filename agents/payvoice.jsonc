@@ -1,0 +1,121 @@
+// PayVoice Rescue: a polite overdue-invoice voice agent.
+//
+// It looks up an invoice, logs a promise-to-pay, and creates a secure deposit
+// link, all through client-side tools handled by the browser. The agent file
+// only declares the tools; the mock backend lives in the page so the demo
+// works without public HTTP endpoints.
+//
+// https://www.assemblyai.com/docs/voice-agents/voice-agent-api/create-agent
+{
+  "name": "PayVoice Rescue",
+
+  // Voice-first prompt: short spoken sentences, no bullet points, no visual
+  // formatting, no exclamation marks. The agent must use its tools rather
+  // than make up invoice data.
+  // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/prompting-guide
+  "system_prompt": "You are PayVoice Rescue, calling on behalf of a small business about one overdue invoice. Your job is to collect payment or record a firm promise-to-pay. Be polite, clear, and brief. Use the lookup_invoice tool to fetch invoice details before discussing money. Use log_promise when the caller commits to pay by a specific date. Use create_deposit when they are ready to pay now and you need a payment link. Never make up invoice numbers, amounts, or due dates. Read phone numbers back digit by digit. Confirm any promise date by repeating the day, month, and year. Keep every reply to one or two short sentences.",
+
+  // Spoken as soon as the call connects.
+  // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/greeting
+  "greeting": "Hello, this is PayVoice Rescue. I'm calling about invoice two zero four nine two for Acme Consulting. It is seven hundred and fifty dollars and thirty days overdue. Can we sort out payment today?",
+
+  // Voice catalog: https://www.assemblyai.com/docs/voice-agents/voice-agent-api/voices
+  "voice": { "voice_id": "jane" },
+
+  "input": {
+    // Names and terms that are easy to mis-transcribe on a voice call.
+    // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/transcription-prompt
+    "keyterms": [
+      "PayVoice Rescue",
+      "Acme Consulting",
+      "invoice",
+      "overdue",
+      "promise-to-pay",
+      "deposit link",
+      "two zero four nine two",
+      "seven hundred and fifty dollars",
+      "thirty days"
+    ],
+
+    // Patient turn detection for collections: let the caller finish a thought.
+    // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/turn-detection-and-interruptions
+    "turn_detection": {
+      "vad_threshold": 0.5,
+      "min_silence": 1100,
+      "max_silence": 3500,
+      "interrupt_response": true
+    }
+  },
+
+  // Client-side function tools: the browser runs these and returns results.
+  // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/tools/client-side-tools
+  "tools": [
+    {
+      "type": "function",
+      "name": "lookup_invoice",
+      "description": "Fetch details for a single overdue invoice. Call this before discussing amount, due date, or days overdue.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "The invoice number as spoken by the caller, e.g. 20492."
+          }
+        },
+        "required": ["invoice_id"]
+      },
+      "execution_mode": "hold",
+      "timeout_seconds": 15
+    },
+    {
+      "type": "function",
+      "name": "log_promise",
+      "description": "Record a promise-to-pay. Only call this after the caller has given a specific future date and the amount they will pay.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "The invoice number being paid."
+          },
+          "promise_date": {
+            "type": "string",
+            "description": "ISO-8601 date the caller promised to pay, e.g. 2026-09-25."
+          },
+          "amount_cents": {
+            "type": "integer",
+            "description": "Amount the caller promised, in cents."
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "Callback number in E.164 format, e.g. +14155551234."
+          }
+        },
+        "required": ["invoice_id", "promise_date", "amount_cents", "phone_number"]
+      },
+      "execution_mode": "hold",
+      "timeout_seconds": 15
+    },
+    {
+      "type": "function",
+      "name": "create_deposit",
+      "description": "Create a one-time deposit link so the caller can pay immediately. Use only when they agree to pay now.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "The invoice number being paid."
+          },
+          "amount_cents": {
+            "type": "integer",
+            "description": "Amount to collect, in cents."
+          }
+        },
+        "required": ["invoice_id", "amount_cents"]
+      },
+      "execution_mode": "hold",
+      "timeout_seconds": 15
+    }
+  ]
+}
