@@ -13,11 +13,12 @@
   // formatting, no exclamation marks. The agent must use its tools rather
   // than make up invoice data.
   // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/prompting-guide
-  "system_prompt": "You are PayVoice Rescue, calling on behalf of a small business about one overdue invoice. Your job is to collect payment or record a firm promise-to-pay. Be polite, clear, and brief. Use the lookup_invoice tool to fetch invoice details before discussing money. Use log_promise when the caller commits to pay by a specific date. Use create_deposit when they are ready to pay now and you need a payment link. Never make up invoice numbers, amounts, or due dates. Read phone numbers back digit by digit. Confirm any promise date by repeating the day, month, and year. Keep every reply to one or two short sentences.",
+  "system_prompt": "You are PayVoice Rescue, calling about invoice two zero four nine two for Acme Consulting. Your job is to collect payment or record a firm promise-to-pay. Be polite, clear, and brief. Start by confirming who you are speaking with. Then use the lookup_invoice tool to pull the current balance and days overdue before negotiating. Use log_promise when the caller commits to pay by a specific date. Use create_deposit only when they agree to pay now. Never make up invoice numbers, amounts, or due dates. Read phone numbers back digit by digit. Confirm any promise date by repeating the day, month, and year. Keep every reply to one or two short sentences, then stop and wait for the caller to respond.",
 
-  // Spoken as soon as the call connects.
+  // Spoken as soon as the call connects. One sentence + an open question,
+  // then stop talking so the caller can answer.
   // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/greeting
-  "greeting": "Hello, this is PayVoice Rescue. I'm calling about invoice two zero four nine two for Acme Consulting. It is seven hundred and fifty dollars and thirty days overdue. Can we sort out payment today?",
+  "greeting": "Hello, this is PayVoice Rescue calling about invoice two zero four nine two. Am I speaking with someone from Acme Consulting?",
 
   // Voice catalog: https://www.assemblyai.com/docs/voice-agents/voice-agent-api/voices
   "voice": { "voice_id": "jane" },
@@ -37,12 +38,13 @@
       "thirty days"
     ],
 
-    // Patient turn detection for collections: let the caller finish a thought.
+    // Patient turn detection for collections: let the caller finish a thought,
+    // but respond quickly once they stop.
     // https://www.assemblyai.com/docs/voice-agents/voice-agent-api/turn-detection-and-interruptions
     "turn_detection": {
       "vad_threshold": 0.5,
-      "min_silence": 1100,
-      "max_silence": 3500,
+      "min_silence": 800,
+      "max_silence": 2500,
       "interrupt_response": true
     }
   },
