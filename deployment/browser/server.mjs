@@ -6,7 +6,9 @@
 // The API key stays in this process; the page only gets 60-second tokens.
 
 import http from 'node:http'
-import { aai, loadEnv, publishAgent, readAgent, required, storedAgentId } from '../../lib.mjs'
+import {
+  aai, checkoutStatus, createCheckout, loadEnv, publishAgent, readAgent, required, storedAgentId,
+} from '../../lib.mjs'
 
 loadEnv()
 required('ASSEMBLYAI_API_KEY', 'get one at https://www.assemblyai.com/dashboard/api-keys')
@@ -281,26 +283,50 @@ const TOOLS = {
     }
   },
 
-  create_deposit({ invoice_id, amount_cents }) {
-    const id = `dep_${Math.random().toString(36).slice(2, 10)}`
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  // A real Stripe test-mode Checkout session, created by the server so the
+  // Stripe key stays there.
+  async create_deposit({ invoice_id, amount_cents }) {
+    const res = await fetch('/deposit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ invoice_id, amount_cents })
+    })
+    const body = await res.json()
+    if (!res.ok) return { error: body.error }
+    watchPayment(body.id)
     return {
-      deposit_url: `https://payvoice.example.com/d/${id}?invoice=${invoice_id}`,
+      deposit_url: body.url,
       invoice_id,
       amount_cents,
-      expires_at: expires
+      status: 'awaiting_payment'
     }
   }
 }
 
-function runTool(name, args) {
+async function runTool(name, args) {
   const handler = TOOLS[name]
   if (!handler) return { error: `No handler for tool ${name}` }
   try {
-    return handler(args)
+    return await handler(args)
   } catch (err) {
     return { error: err.message }
   }
+}
+
+// Polls until the caller pays, then books the payment in the ledger. Keeps
+// going after the call ends, since people often pay after hanging up.
+function watchPayment(sessionId) {
+  const started = Date.now()
+  const poll = setInterval(async () => {
+    if (Date.now() - started > 15 * 60 * 1000) return clearInterval(poll)
+    try {
+      const res = await fetch('/deposit/' + sessionId)
+      const { status } = await res.json()
+      if (status !== 'paid') return
+      clearInterval(poll)
+      logPayment(sessionId)
+    } catch {}
+  }, 3000)
 }
 
 function flushTools() {
@@ -475,9 +501,10 @@ async function start() {
           addLine('tool', `${msg.name}(${JSON.stringify(args)})`)
           logToolCall(msg.call_id, msg.name, args)
           logEvent('down', msg.type, `${msg.name} ${JSON.stringify(args)}`)
-          const result = runTool(msg.name, args)
-          pendingTools.push({ call_id: msg.call_id, result })
-          flushTools()
+          runTool(msg.name, args).then((result) => {
+            pendingTools.push({ call_id: msg.call_id, result })
+            flushTools()
+          })
           break
         }
 
@@ -730,6 +757,27 @@ function logToolResult(callId, result) {
   const text = JSON.stringify(result)
   row.querySelector('.result').textContent = text
   row.classList.add(result && typeof result.error === 'string' ? 'error' : 'ok')
+  if (result && result.deposit_url) {
+    const link = document.createElement('a')
+    link.href = result.deposit_url
+    link.target = '_blank'
+    link.rel = 'noopener'
+    link.textContent = 'Open payment link'
+    row.append(link)
+  }
+}
+
+function logPayment(sessionId) {
+  const feed = $('tools-body')
+  clearEmpty(feed)
+  const row = toolRow('paid-' + sessionId)
+  row.classList.add('ok', 'paid')
+  row.querySelector('.name').textContent = 'payment.received'
+  row.querySelector('.args').textContent = sessionId
+  row.querySelector('.result').textContent = 'PAID via Stripe'
+  feed.append(row)
+  scroll(feed)
+  addLine('tool', 'payment.received ' + sessionId)
 }
 
 function clearToolFeed() {
@@ -888,6 +936,8 @@ const HTML = `<!DOCTYPE html>
   .tool-row .result { color: var(--green-500); word-break: break-all; grid-column: 2; }
   .tool-row.error .result { color: var(--error); }
   .tool-row.ok .result { color: var(--green-500); }
+  .tool-row.paid .result { font-weight: 600; }
+  .tool-row a { grid-column: 2; color: var(--cobolt-500); }
 </style>
 </head>
 <body>
@@ -972,6 +1022,47 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(502, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ error: 'token request failed' }))
     }
+    return
+  }
+  if (req.method === 'POST' && req.url === '/deposit') {
+    try {
+      let raw = ''
+      for await (const chunk of req) {
+        raw += chunk
+        if (raw.length > 1024) throw new Error('request body too large')
+      }
+      const { invoice_id, amount_cents } = JSON.parse(raw)
+      const proto = req.headers['x-forwarded-proto'] || 'http'
+      const session = await createCheckout({
+        invoice_id: String(invoice_id),
+        amount_cents,
+        return_url: `${proto}://${req.headers.host}/paid`,
+      })
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(session))
+    } catch (error) {
+      console.error(error.message)
+      res.writeHead(502, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'could not create the payment link' }))
+    }
+    return
+  }
+  if (req.url.startsWith('/deposit/')) {
+    try {
+      const status = await checkoutStatus(req.url.slice('/deposit/'.length))
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ status }))
+    } catch (error) {
+      console.error(error.message)
+      res.writeHead(502, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'could not read the payment status' }))
+    }
+    return
+  }
+  // Stripe sends the payer here after checkout.
+  if (req.url.startsWith('/paid')) {
+    res.writeHead(200, { 'content-type': 'text/html' })
+    res.end('<!DOCTYPE html><title>Payment received</title><p style="font-family:system-ui;padding:24px">Payment received. You can close this tab.</p>')
     return
   }
   if (req.url === '/app.js') {

@@ -295,3 +295,47 @@ export async function twilio(url, form) {
   }
   return text ? JSON.parse(text) : {}
 }
+
+// --- Stripe ----------------------------------------------------------------
+
+// Same approach as twilio(): form-encoded REST with no SDK. The deposit link
+// is a Checkout session; the page polls its status to show the payment land.
+async function stripe(path, form) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set, add a test-mode key to .env')
+  }
+  const res = await fetch('https://api.stripe.com/v1' + path, {
+    method: form ? 'POST' : 'GET',
+    headers: {
+      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+    },
+    ...(form ? { body: new URLSearchParams(form).toString() } : {}),
+  })
+  const text = await res.text()
+  if (!res.ok) throw new ApiError(`Stripe ${form ? 'POST' : 'GET'} ${path}`, res.status, text)
+  return JSON.parse(text)
+}
+
+export async function createCheckout({ invoice_id, amount_cents, return_url }) {
+  // Stripe's minimum charge is 50 cents; anything else is a bad tool argument.
+  if (!Number.isInteger(amount_cents) || amount_cents < 50) {
+    throw new Error(`amount_cents must be an integer of at least 50, got ${amount_cents}`)
+  }
+  const session = await stripe('/checkout/sessions', {
+    mode: 'payment',
+    client_reference_id: invoice_id,
+    'line_items[0][quantity]': '1',
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][unit_amount]': String(amount_cents),
+    'line_items[0][price_data][product_data][name]': `Invoice ${invoice_id}`,
+    success_url: return_url,
+  })
+  return { id: session.id, url: session.url }
+}
+
+export async function checkoutStatus(id) {
+  if (!/^cs_[A-Za-z0-9_]+$/.test(id)) throw new Error(`not a checkout session id: ${id}`)
+  const session = await stripe(`/checkout/sessions/${id}`)
+  return session.payment_status
+}

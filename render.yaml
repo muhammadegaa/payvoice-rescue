@@ -11,6 +11,9 @@ services:
       # be changed afterwards under Environment on the service.
       - key: ASSEMBLYAI_API_KEY
         sync: false
+      # Stripe test-mode key for the PayVoice deposit link.
+      - key: STRIPE_SECRET_KEY
+        sync: false
       # Which agents/<name>.jsonc the service publishes on boot.
       - key: AGENT
         value: payvoice
