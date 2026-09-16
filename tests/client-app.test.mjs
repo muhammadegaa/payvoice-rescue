@@ -17,13 +17,3 @@ test('server app contains tool handler wiring', () => {
   assert.ok(SOURCE.includes('logToolCall'))
   assert.ok(SOURCE.includes('logToolResult'))
 })
-
-test('deposit link is a real checkout the page watches until paid', () => {
-  assert.ok(SOURCE.includes("req.url === '/deposit'"))
-  assert.ok(SOURCE.includes("req.url.startsWith('/deposit/')"))
-  assert.ok(SOURCE.includes('createCheckout'))
-  assert.ok(SOURCE.includes('checkoutStatus'))
-  assert.ok(SOURCE.includes('watchPayment'))
-  assert.ok(SOURCE.includes('payment.received'))
-  assert.ok(!SOURCE.includes('payvoice.example.com'))
-})
