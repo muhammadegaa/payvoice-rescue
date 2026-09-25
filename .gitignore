@@ -3,3 +3,6 @@ node_modules/
 agents/*.env
 *.log
 server.pid
+
+# Strategy notes, not part of the submission
+docs/idea-lock/

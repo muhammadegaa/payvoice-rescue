@@ -949,7 +949,9 @@ function publicAgent(agent) {
   return copy
 }
 
-const server = http.createServer(async (req, res) => {
+// Exported so a serverless host can call it directly. api/index.mjs on Vercel
+// is this same function; there is no second copy of the page or the routes.
+export async function handler(req, res) {
   if (req.url === '/agent') {
     try {
       const agent = await aai(`/agents/${AGENT.id}`)
@@ -981,17 +983,22 @@ const server = http.createServer(async (req, res) => {
   }
   res.writeHead(200, { 'content-type': 'text/html' })
   res.end(HTML)
-})
+}
 
-// PORT when set, otherwise 3000 and up until one is free.
-let port = Number(process.env.PORT) || 3000
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE' && !process.env.PORT && port < 3010) {
-    port += 1
-    server.listen(port)
-    return
-  }
-  throw err
-})
-server.on('listening', () => console.log(`Talk to it: http://localhost:${port}`))
-server.listen(port)
+// Vercel imports the handler and owns the listening socket, so only the local
+// run starts a server of its own.
+if (!process.env.VERCEL) {
+  const server = http.createServer(handler)
+  // PORT when set, otherwise 3000 and up until one is free.
+  let port = Number(process.env.PORT) || 3000
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && !process.env.PORT && port < 3010) {
+      port += 1
+      server.listen(port)
+      return
+    }
+    throw err
+  })
+  server.on('listening', () => console.log(`Talk to it: http://localhost:${port}`))
+  server.listen(port)
+}
