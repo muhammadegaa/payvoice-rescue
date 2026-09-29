@@ -127,3 +127,70 @@ describe('callRecord', () => {
     assert.strictEqual(record.summary.outcome, 'no_commitment')
   })
 })
+
+// A promise is often made over several turns: the date in one, the callback
+// number in the next. The quote must be the words that gave the date.
+const turn = (user_transcript, user_confidence, tool_calls = []) => ({
+  user_transcript, user_confidence, agent_text: '', time_to_first_audio_ms: 900, tool_calls,
+})
+const call = (name, args, result, is_error = false) => ({
+  call_id: name + Math.random(), name, arguments: args, result: JSON.stringify(result), duration_ms: 200, is_error,
+})
+const promiseArgs = { invoice_id: '20492', promise_date: '2026-10-14', amount_cents: 75000 }
+
+describe('callRecord quotes the words that made the promise', () => {
+  it('uses the turn where the caller gave the date, not the later turn that gave the phone number', () => {
+    const record = callRecord({
+      session_id: 'sess_1',
+      turns: [
+        turn(null, null),
+        turn('Yes, this is Acme.', 0.99, [call('lookup_invoice', { invoice_id: '20492' }, { status: 'overdue' })]),
+        turn('I can pay it on the 14th of October.', 0.93, [
+          call('log_promise', { ...promiseArgs, phone_number: 'unknown' }, { error: 'The caller has not said that phone number.' }, true),
+        ]),
+        turn('My number is 415-555-0134.', 0.99, [
+          call('log_promise', { ...promiseArgs, phone_number: '+14155550134' }, { reference: 'PROM-20492-ABC' }),
+        ]),
+      ],
+    })
+    assert.strictEqual(record.promise.reference, 'PROM-20492-ABC')
+    assert.strictEqual(record.promise.said, 'I can pay it on the 14th of October.')
+    assert.strictEqual(record.promise.confidence, 0.93)
+    assert.strictEqual(record.summary.outcome, 'promise_to_pay')
+  })
+
+  it('shows a refused attempt in the tool list without counting it as the promise', () => {
+    const record = callRecord({
+      turns: [
+        turn('I can pay it on the 14th of October.', 0.93, [
+          call('log_promise', { ...promiseArgs, phone_number: 'unknown' }, { error: 'no' }, true),
+        ]),
+      ],
+    })
+    assert.strictEqual(record.tools.length, 1)
+    assert.strictEqual(record.tools[0].is_error, true)
+    assert.strictEqual(record.promise, null)
+    assert.strictEqual(record.summary.outcome, 'no_commitment')
+  })
+
+  it('uses the same turn when the date and the tool call are in it', () => {
+    const record = callRecord({
+      turns: [
+        turn('I will pay on October 14th, my number is 415-555-0134.', 0.9, [
+          call('log_promise', { ...promiseArgs, phone_number: '+14155550134' }, { reference: 'PROM-1' }),
+        ]),
+      ],
+    })
+    assert.strictEqual(record.promise.said, 'I will pay on October 14th, my number is 415-555-0134.')
+  })
+
+  it('falls back to the turn of the tool call when no earlier turn mentions a date', () => {
+    const record = callRecord({
+      turns: [
+        turn('Yes.', 0.99),
+        turn('Sure, go ahead.', 0.95, [call('log_promise', promiseArgs, { reference: 'PROM-2' })]),
+      ],
+    })
+    assert.strictEqual(record.promise.said, 'Sure, go ahead.')
+  })
+})

@@ -17,3 +17,11 @@ test('server app contains tool handler wiring', () => {
   assert.ok(SOURCE.includes('logToolCall'))
   assert.ok(SOURCE.includes('logToolResult'))
 })
+
+test('log_promise is checked against what the caller said and against today', () => {
+  assert.ok(SOURCE.includes('numberWasSpoken(phone_number, spoken)'))
+  assert.ok(SOURCE.includes('promiseDateProblem(promise_date, today())'))
+  assert.ok(SOURCE.includes("' Today is ' + today()"))
+  assert.ok(SOURCE.includes('numberWasSpoken.toString()'))
+  assert.ok(SOURCE.includes('promiseDateProblem.toString()'))
+})

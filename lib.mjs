@@ -339,13 +339,27 @@ const median = (numbers) => {
   return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2)
 }
 
+// The caller often gives the date in one turn and the callback number in the
+// next, and the promise is recorded on the second. The quote should be the
+// words that gave the date, so look back from the tool call to the latest turn
+// that mentions one, and fall back to the tool call's own turn.
+const DATE_WORDS =
+  /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b\d{1,2}(st|nd|rd|th)\b|\b\d{1,2}\/\d{1,2}\b|\b(tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i
+
+function turnWithDate(turns, index) {
+  for (let i = index; i >= 0; i--) {
+    if (DATE_WORDS.test(turns[i].user_transcript ?? '')) return turns[i]
+  }
+  return turns[index]
+}
+
 export function callRecord(timeline) {
   const turns = timeline?.turns ?? []
   const tools = []
   let promise = null
   let paying = false
 
-  for (const turn of turns) {
+  for (const [index, turn] of turns.entries()) {
     for (const call of turn.tool_calls ?? []) {
       tools.push({
         name: call.name,
@@ -364,8 +378,8 @@ export function callRecord(timeline) {
           amount_cents: call.arguments?.amount_cents ?? null,
           reference: result.reference ?? null,
           // The words that produced the promise, not a paraphrase of them.
-          said: turn.user_transcript ?? null,
-          confidence: turn.user_confidence ?? null,
+          said: turnWithDate(turns, index).user_transcript ?? null,
+          confidence: turnWithDate(turns, index).user_confidence ?? null,
         }
       }
     }
@@ -403,4 +417,37 @@ export function sessionConfig(agent) {
     )
   }
   return config
+}
+
+// --- tool-call guards ------------------------------------------------------
+
+// The model fills in tool arguments, and it sometimes makes them up: a phone
+// number the caller never gave, a date two years in the past. The browser runs
+// these two checks before a tool result goes back, and the server sends their
+// source to the page, so each must use nothing from outside its own body.
+
+// True when the last ten digits of `phone` appear in something the caller said.
+// Speech recognition may return digits or number words, so both are read.
+export function numberWasSpoken(phone, spoken) {
+  const digits = (text) =>
+    String(text ?? '')
+      .toLowerCase()
+      .replace(/\b(zero|oh|one|two|three|four|five|six|seven|eight|nine)\b/g, (word) =>
+        ({ zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 })[word]
+      )
+      .replace(/\D/g, '')
+  const wanted = digits(phone)
+  if (wanted.length < 10) return false
+  const tail = wanted.slice(-10)
+  return spoken.some((line) => digits(line).includes(tail))
+}
+
+// Null when the date is fine, otherwise the message the agent gets back.
+export function promiseDateProblem(iso, today) {
+  const real = typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) && !Number.isNaN(Date.parse(iso))
+  if (!real) return 'promise_date must be an ISO date like 2026-10-14.'
+  if (iso < today) {
+    return `${iso} is in the past and today is ${today}. Use the next occurrence of the date the caller gave.`
+  }
+  return null
 }

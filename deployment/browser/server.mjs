@@ -7,7 +7,8 @@
 
 import http from 'node:http'
 import {
-  aai, agentsWebsocket, callRecord, loadEnv, readAgent, required, sessionConfig, sessionTimeline,
+  aai, agentsWebsocket, callRecord, loadEnv, numberWasSpoken, promiseDateProblem, readAgent, required,
+  sessionConfig, sessionTimeline,
 } from '../../lib.mjs'
 
 loadEnv()
@@ -241,6 +242,9 @@ $('tab-record').onclick = () => showTab('record')
 // Mock backend for the PayVoice Rescue demo. The agent declares function
 // tools; the browser runs them and returns tool.result over the websocket.
 let lastEvent = null
+// Everything the caller has said this call; tool arguments are checked against it.
+let spoken = []
+const today = () => new Date().toLocaleDateString('en-CA')
 const pendingTools = []
 
 const TOOLS = {
@@ -259,6 +263,15 @@ const TOOLS = {
   },
 
   log_promise({ invoice_id, promise_date, amount_cents, phone_number }) {
+    // The model fills these in and sometimes makes them up, so a promise is
+    // only recorded when the date is real and the number was actually said.
+    const dateProblem = promiseDateProblem(promise_date, today())
+    if (dateProblem) return { error: dateProblem }
+    if (!numberWasSpoken(phone_number, spoken)) {
+      return {
+        error: 'The caller has not said that phone number. Ask for a callback number, read it back digit by digit, and use only the number they give.'
+      }
+    }
     const ref = `PROM-${invoice_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
     return {
       reference: ref,
@@ -374,7 +387,9 @@ async function start() {
 
     // The agent's whole configuration travels with the session.
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'session.update', session: AGENT.config }))
+      // The model does not know today's date, and guesses the year without it.
+      const session = { ...AGENT.config, system_prompt: AGENT.config.system_prompt + ' Today is ' + today() + '.' }
+      ws.send(JSON.stringify({ type: 'session.update', session }))
       logEvent('up', 'session.update', AGENT.name)
     }
 
@@ -386,6 +401,7 @@ async function start() {
           sessionId = msg.session_id
           callStart = Date.now()
           lastEvent = null
+          spoken = []
           pendingTools.length = 0
           timer = setInterval(tick, 1000)
           tick()
@@ -449,6 +465,7 @@ async function start() {
           break
 
         case 'transcript.user':
+          spoken.push(msg.text)
           addLine('you', msg.text)
           logEvent('down', msg.type, msg.text)
           break
@@ -1118,7 +1135,10 @@ export async function handler(req, res) {
   }
   if (req.url === '/app.js') {
     res.writeHead(200, { 'content-type': 'text/javascript' })
-    res.end('(' + clientApp.toString() + ')();')
+    // The tool guards live in lib.mjs so they can be tested; the page gets their source.
+    res.end(
+      numberWasSpoken.toString() + '\n' + promiseDateProblem.toString() + '\n(' + clientApp.toString() + ')();'
+    )
     return
   }
   res.writeHead(200, { 'content-type': 'text/html' })
