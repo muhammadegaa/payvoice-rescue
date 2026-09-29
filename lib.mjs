@@ -295,3 +295,82 @@ export async function twilio(url, form) {
   }
   return text ? JSON.parse(text) : {}
 }
+
+// --- call record -----------------------------------------------------------
+
+// Every call is stored as a session. The timeline is the evidence a
+// collections team actually needs: what was promised, in the caller's own
+// words, and what the agent did to get there.
+// https://www.assemblyai.com/docs/voice-agents/voice-agent-api/session-history
+export async function sessionTimeline(id) {
+  const session = await aai(`/sessions/${id}`)
+  const artifact = (session.artifacts ?? []).find((a) => a.type === 'timeline')
+  // No timeline yet means the session is still open or still being written.
+  if (!artifact) return null
+  // Pre-signed, so it must not carry the Authorization header.
+  const res = await fetch(artifact.url)
+  if (!res.ok) throw new ApiError(`GET timeline ${id}`, res.status, await res.text())
+  return res.json()
+}
+
+const parseResult = (raw) => {
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : raw ?? {}
+  } catch {
+    return {}
+  }
+}
+
+const median = (numbers) => {
+  if (!numbers.length) return null
+  const sorted = [...numbers].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2)
+}
+
+export function callRecord(timeline) {
+  const turns = timeline?.turns ?? []
+  const tools = []
+  let promise = null
+  let paying = false
+
+  for (const turn of turns) {
+    for (const call of turn.tool_calls ?? []) {
+      tools.push({
+        name: call.name,
+        arguments: call.arguments,
+        result: parseResult(call.result),
+        duration_ms: call.duration_ms ?? null,
+        is_error: Boolean(call.is_error || call.timed_out),
+      })
+      if (call.is_error) continue
+      if (call.name === 'create_deposit') paying = true
+      if (call.name === 'log_promise') {
+        const result = parseResult(call.result)
+        promise = {
+          invoice_id: call.arguments?.invoice_id ?? null,
+          promise_date: call.arguments?.promise_date ?? null,
+          amount_cents: call.arguments?.amount_cents ?? null,
+          reference: result.reference ?? null,
+          // The words that produced the promise, not a paraphrase of them.
+          said: turn.user_transcript ?? null,
+          confidence: turn.user_confidence ?? null,
+        }
+      }
+    }
+  }
+
+  const confidences = turns.map((t) => t.user_confidence).filter((c) => typeof c === 'number')
+  return {
+    session_id: timeline?.session_id ?? null,
+    started_at_unix_ms: timeline?.started_at_unix_ms ?? null,
+    promise,
+    tools,
+    summary: {
+      turns: turns.length,
+      outcome: promise ? 'promise_to_pay' : paying ? 'paying_now' : 'no_commitment',
+      median_reply_ms: median(turns.map((t) => t.time_to_first_audio_ms).filter(Boolean)),
+      lowest_confidence: confidences.length ? Math.min(...confidences) : null,
+    },
+  }
+}

@@ -6,7 +6,9 @@
 // The API key stays in this process; the page only gets 60-second tokens.
 
 import http from 'node:http'
-import { aai, loadEnv, publishAgent, readAgent, required, storedAgentId } from '../../lib.mjs'
+import {
+  aai, callRecord, loadEnv, publishAgent, readAgent, required, sessionTimeline, storedAgentId,
+} from '../../lib.mjs'
 
 loadEnv()
 required('ASSEMBLYAI_API_KEY', 'get one at https://www.assemblyai.com/dashboard/api-keys')
@@ -182,7 +184,7 @@ const PLAYBACK_WORKLET = `
 const blobUrl = (code) =>
   URL.createObjectURL(new Blob([code], { type: 'application/javascript' }))
 
-let ws, captureCtx, playbackCtx, playback, mic, callStart, timer
+let ws, captureCtx, playbackCtx, playback, mic, callStart, timer, sessionId
 
 // --- microphones ---
 // Labels stay empty until mic permission is granted, so this runs again after
@@ -223,7 +225,7 @@ let agentLoaded = false
 let toolsLoaded = false
 
 function showTab(name) {
-  for (const tab of ['events', 'agent', 'tools']) {
+  for (const tab of ['events', 'agent', 'tools', 'record']) {
     $('tab-' + tab).classList.toggle('on', tab === name)
     $(tab + '-body').hidden = tab !== name
   }
@@ -247,6 +249,7 @@ function showTab(name) {
 $('tab-events').onclick = () => showTab('events')
 $('tab-agent').onclick = () => showTab('agent')
 $('tab-tools').onclick = () => showTab('tools')
+$('tab-record').onclick = () => showTab('record')
 
 // --- client-side tools ---
 // Mock backend for the PayVoice Rescue demo. The agent declares function
@@ -394,6 +397,7 @@ async function start() {
       switch (msg.type) {
         case 'session.ready':
           ready = true
+          sessionId = msg.session_id
           callStart = Date.now()
           lastEvent = null
           pendingTools.length = 0
@@ -496,7 +500,13 @@ async function start() {
       }
     }
 
-    ws.onclose = () => { setStatus('idle'); reset() }
+    ws.onclose = () => {
+      setStatus('idle')
+      reset()
+      // The record is written after the session closes, so it is fetched
+      // rather than assembled from what the page happened to see.
+      if (sessionId) loadRecord(sessionId)
+    }
     ws.onerror = () => { setStatus('error', 'connection failed'); reset() }
   } catch (error) {
     setStatus('error', error.message)
@@ -732,6 +742,109 @@ function logToolResult(callId, result) {
   row.classList.add(result && typeof result.error === 'string' ? 'error' : 'ok')
 }
 
+// --- call record ---
+// Pulled from the session the API stored, not from what this page saw, so it
+// is the same evidence a collections team would read back later.
+const money = (cents) => '$' + (cents / 100).toFixed(2)
+const OUTCOME = {
+  promise_to_pay: ['Promise to pay', 'ok'],
+  paying_now: ['Paying now', 'ok'],
+  no_commitment: ['No commitment', 'warn'],
+}
+
+function recordRow(label, value, cls) {
+  const row = document.createElement('div')
+  row.className = 'rec-row' + (cls ? ' ' + cls : '')
+  const l = document.createElement('span')
+  l.className = 'rec-label'
+  l.textContent = label
+  const v = document.createElement('span')
+  v.className = 'rec-value'
+  v.textContent = value
+  row.append(l, v)
+  return row
+}
+
+function renderRecord(record) {
+  const body = $('record-body')
+  body.replaceChildren()
+
+  const [text, tone] = OUTCOME[record.summary.outcome] ?? ['Unknown', 'warn']
+  const head = document.createElement('div')
+  head.className = 'rec-outcome ' + tone
+  head.textContent = text
+  body.append(head)
+
+  if (record.promise) {
+    const p = record.promise
+    const card = document.createElement('div')
+    card.className = 'rec-card'
+    if (p.promise_date) card.append(recordRow('Pay by', p.promise_date))
+    if (typeof p.amount_cents === 'number') card.append(recordRow('Amount', money(p.amount_cents)))
+    if (p.invoice_id) card.append(recordRow('Invoice', p.invoice_id))
+    if (p.reference) card.append(recordRow('Reference', p.reference))
+    if (p.said) {
+      const quote = document.createElement('blockquote')
+      quote.className = 'rec-quote'
+      quote.textContent = '"' + p.said + '"'
+      card.append(quote)
+      if (typeof p.confidence === 'number') {
+        card.append(recordRow('Heard with confidence', (p.confidence * 100).toFixed(0) + '%'))
+      }
+    }
+    body.append(card)
+  }
+
+  if (record.tools.length) {
+    const list = document.createElement('div')
+    list.className = 'rec-card'
+    list.append(recordRow('Tool calls', String(record.tools.length)))
+    for (const tool of record.tools) {
+      list.append(recordRow(
+        tool.name,
+        (tool.duration_ms == null ? '' : tool.duration_ms + ' ms') + (tool.is_error ? ' · failed' : ''),
+        tool.is_error ? 'err' : 'mono'
+      ))
+    }
+    body.append(list)
+  }
+
+  const stats = document.createElement('div')
+  stats.className = 'rec-card'
+  stats.append(recordRow('Turns', String(record.summary.turns)))
+  if (record.summary.median_reply_ms != null) {
+    stats.append(recordRow('Median reply', record.summary.median_reply_ms + ' ms'))
+  }
+  if (record.summary.lowest_confidence != null) {
+    stats.append(recordRow('Lowest confidence', (record.summary.lowest_confidence * 100).toFixed(0) + '%'))
+  }
+  if (record.session_id) stats.append(recordRow('Session', record.session_id, 'mono'))
+  body.append(stats)
+}
+
+function loadRecord(id, attempt = 0) {
+  const body = $('record-body')
+  if (!attempt) {
+    body.replaceChildren()
+    const waiting = document.createElement('div')
+    waiting.className = 'empty'
+    waiting.textContent = 'Writing the call record…'
+    body.append(waiting)
+    $('tab-record').classList.add('ready')
+  }
+  fetch('/record/' + id)
+    .then((res) => (res.status === 202 ? null : res.json()))
+    .then((record) => {
+      if (record) return renderRecord(record)
+      if (attempt < 20) return setTimeout(() => loadRecord(id, attempt + 1), 3000)
+      body.textContent = 'The call record is taking longer than usual.'
+    })
+    .catch(() => {
+      if (attempt < 20) return setTimeout(() => loadRecord(id, attempt + 1), 3000)
+      body.textContent = 'Could not load the call record.'
+    })
+}
+
 function clearToolFeed() {
   const feed = $('tools-body')
   feed.replaceChildren()
@@ -888,6 +1001,24 @@ const HTML = `<!DOCTYPE html>
   .tool-row .result { color: var(--green-500); word-break: break-all; grid-column: 2; }
   .tool-row.error .result { color: var(--error); }
   .tool-row.ok .result { color: var(--green-500); }
+
+  /* Call record: the evidence a collections team keeps after the call. */
+  #record-body { display: flex; flex-direction: column; gap: 12px; }
+  .rec-outcome { font-family: var(--font-mono); font-size: 12px; letter-spacing: 1.2px;
+                 text-transform: uppercase; padding: 8px 12px; border-radius: var(--radius-sm);
+                 align-self: flex-start; }
+  .rec-outcome.ok { background: #e6f2eb; color: var(--green-500); }
+  .rec-outcome.warn { background: var(--surface-alt); color: var(--text-muted); }
+  .rec-card { border: 1px solid var(--border); border-radius: var(--radius-sm);
+              padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .rec-row { display: flex; gap: 12px; align-items: baseline; font-size: 13px; }
+  .rec-label { color: var(--text-muted); flex: 1; }
+  .rec-value { color: var(--text-dark); text-align: right; word-break: break-all; }
+  .rec-row.mono .rec-value, .rec-row.mono .rec-label { font-family: var(--font-mono); font-size: 12px; }
+  .rec-row.err .rec-value { color: var(--error); }
+  .rec-quote { font-size: 14px; line-height: 1.45; color: var(--text-dark);
+               border-left: 2px solid var(--cobolt-300); padding: 4px 0 4px 10px; margin: 4px 0; }
+  .tab.ready::after { content: "•"; color: var(--cobolt-500); margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -915,6 +1046,7 @@ const HTML = `<!DOCTYPE html>
           <button class="ghost tab on" id="tab-events">Events</button>
           <button class="ghost tab" id="tab-agent">Agent</button>
           <button class="ghost tab" id="tab-tools">Tools</button>
+          <button class="ghost tab" id="tab-record">Record</button>
         </span>
         <button class="ghost" id="log-toggle">Hide</button>
       </div>
@@ -926,6 +1058,9 @@ const HTML = `<!DOCTYPE html>
       </div>
       <div class="pane-body" id="tools-body" hidden>
         <div class="empty">Tool calls and their results will appear here.</div>
+      </div>
+      <div class="pane-body" id="record-body" hidden>
+        <div class="empty">When the call ends, the record of what was promised appears here, pulled back from the stored session.</div>
       </div>
     </section>
   </div>
@@ -973,6 +1108,31 @@ export async function handler(req, res) {
       console.error(error.message)
       res.writeHead(502, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ error: 'token request failed' }))
+    }
+    return
+  }
+  // The stored session for one call, reduced to the promise, the tool calls
+  // and the timings. Returns 202 while the timeline is still being written.
+  if (req.url.startsWith('/record/')) {
+    const id = req.url.slice('/record/'.length)
+    if (!/^sess_[A-Za-z0-9_-]+$/.test(id)) {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'not a session id' }))
+      return
+    }
+    try {
+      const timeline = await sessionTimeline(id)
+      if (!timeline) {
+        res.writeHead(202, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ status: 'pending' }))
+        return
+      }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(callRecord(timeline)))
+    } catch (error) {
+      console.error(error.message)
+      res.writeHead(502, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'could not load the call record' }))
     }
     return
   }
