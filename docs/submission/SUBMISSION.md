@@ -19,6 +19,13 @@ Late payment is the quiet killer of small businesses. Most owners know exactly
 who owes them money and still put off the call, because collections is
 uncomfortable, repetitive work that nobody wants to do twice a week.
 
+Handing that call to a voice agent introduces a worse failure than an awkward
+conversation. The model does not only speak: it fills in the date, the amount
+and the callback number on the tools it calls. When it guesses one, the result
+is a dated commitment with a reference number that nobody made. The call
+sounded fine and the transcript reads fine, so nothing surfaces until the money
+does not arrive. An invented promise is worse than no promise.
+
 PayVoice Rescue is a browser prototype of that call, built on the AssemblyAI
 Voice Agent API for business-to-business invoice reminders. The debtor opens a
 link and speaks normally; the agent asks who it is speaking to, looks up the
@@ -73,14 +80,22 @@ Business, Fintech, Productivity, Automation
 
 ## Video shot list (5:00 maximum)
 
+Open on the refusal, not the happy path. Everyone else's first two minutes are
+an agent being helpful; this one is an agent being stopped.
+
 | Time | On screen | Said |
 |---|---|---|
-| 0:00–0:30 | Title card, then the problem in plain words | "56% of US small businesses are carrying unpaid invoices, averaging $17,500. The owner knows who owes them. They still don't make the call." |
-| 0:30–2:30 | The live deployed URL. Start the call, play the debtor, agree to a date | Let the agent talk. Say as little as possible over it. Point out the ledger filling in as each tool fires. |
-| 2:30–3:00 | The Tools tab | "The agent cannot discuss a balance before it has looked the invoice up. Every call it made is here." |
-| 3:00–3:40 | End the call, open the Record tab and wait for it to fill | "This is fetched back from the session AssemblyAI stored: the promise, the words that produced it, and the confidence they were heard with. That is what a collections team keeps." |
-| 3:40–4:30 | Slides: business case | Who it is for, what they pay today, how this is priced, why it needs voice. |
-| 4:30–5:00 | Slides: scope and roadmap | "B2B only. Mocked data in this demo. Next: HTTP tools so it answers a real phone number, and a webhook that sends the record to the collections team when a call ends." |
+| 0:00–0:25 | Title card, then the Tools tab mid-call showing `log_promise` refused in red | "This is a voice agent trying to record a payment promise with a phone number the caller never said. It was stopped. That is the whole point of this project." |
+| 0:25–0:55 | Slide 3 | "A voice agent fills in the date, the amount and the callback number. When it guesses you don't get an awkward sentence, you get a dated commitment nobody made. The call sounded fine, so nobody catches it for weeks." |
+| 0:55–2:40 | The live URL. Run the call: confirm, ask about 20492, give a date, **then deliberately don't give a number** so the refusal fires, then give a real one | Let the agent talk. Point at the ledger as each tool fires, and at the red row when the promise is refused. "It asked again. Now it has a number I actually said." |
+| 2:40–3:30 | End the call, open the Record tab, wait for it to fill | "Fetched back from the session AssemblyAI stored: the promise, the turn it was recorded on, every other caller turn beside it, and the confidence that turn was transcribed at. It says 'needs review', because confidence measures transcription, not agreement." |
+| 3:30–4:20 | Slides: business case | Who it is for, what they do today, how it would be priced, why voice. |
+| 4:20–5:00 | Slides: scope and roadmap | "B2B reminders only, mocked invoice data, and the debtor comes to a link rather than the agent dialling out. Next: HTTP tools so the same agent answers a phone number, and a webhook that sends the record to the collections team." |
 
 Rules for the recording: one take if possible, screen capture with clean audio,
-no background music, and say out loud that the data is mocked.
+no background music. Say out loud that the data is mocked and that the payment
+link is simulated. Do not claim the agent places outbound calls.
+
+If the refusal does not fire on camera, say so and show it another way rather
+than editing around it: try `log_promise` with no number given, which is the
+case the agent produced in testing.

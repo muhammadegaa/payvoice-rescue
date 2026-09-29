@@ -53,4 +53,12 @@ describe('promiseDateProblem', () => {
       assert.match(promiseDateProblem(bad, today), /ISO date/, String(bad))
     }
   })
+
+  it('refuses a day that does not exist rather than rolling it forward', () => {
+    // Date.parse turns 2027-02-30 into 2 March, so a promise would be recorded
+    // for a day the caller cannot have named.
+    for (const bad of ['2027-02-30', '2026-11-31', '2026-02-30']) {
+      assert.match(promiseDateProblem(bad, today), /ISO date/, bad)
+    }
+  })
 })

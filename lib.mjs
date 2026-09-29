@@ -447,7 +447,13 @@ export function numberWasSpoken(phone, spoken) {
 
 // Null when the date is fine, otherwise the message the agent gets back.
 export function promiseDateProblem(iso, today) {
-  const real = typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) && !Number.isNaN(Date.parse(iso))
+  // Date.parse accepts 2027-02-30 and silently returns 2 March, which would
+  // record a promise for a day the caller cannot have named, so the parsed
+  // date has to come back as the same string it went in as.
+  const real =
+    typeof iso === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(iso) &&
+    new Date(iso + 'T00:00:00Z').toISOString().slice(0, 10) === iso
   if (!real) return 'promise_date must be an ISO date like 2026-10-14.'
   if (iso < today) {
     return `${iso} is in the past and today is ${today}. Use the next occurrence of the date the caller gave.`
