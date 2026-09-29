@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PayVoice Rescue cover</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1920px; height: 1080px; background: #fdfcf8;
+         font-family: system-ui, -apple-system, sans-serif; color: #4a4945;
+         padding: 112px 132px; display: flex; flex-direction: column;
+         position: relative; overflow: hidden; }
+  .eyebrow { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 24px;
+             letter-spacing: 2.4px; text-transform: uppercase; color: #3923c7; }
+  h1 { font-family: Georgia, serif; font-size: 148px; font-weight: 400;
+       letter-spacing: -4px; line-height: 1; color: #1d1b16; margin-top: 44px; }
+  .rule { width: 150px; height: 8px; background: #3923c7; margin: 52px 0 44px; }
+  p { font-size: 44px; line-height: 1.35; max-width: 26ch; }
+  .ledger { position: absolute; right: 132px; bottom: 150px; width: 700px;
+            background: #fff; border: 1px solid #dad7cb; border-radius: 18px;
+            padding: 34px 38px; font-family: "JetBrains Mono", ui-monospace, monospace;
+            font-size: 21px; line-height: 2.1; }
+  .ledger .tool { color: #3923c7; font-weight: 600; }
+  .ledger .res { color: #01762f; }
+  .foot { position: absolute; left: 132px; bottom: 76px;
+          font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 22px;
+          letter-spacing: 1.6px; text-transform: uppercase; color: #a5a4a2; }
+</style>
+</head>
+<body>
+  <div class="eyebrow">AssemblyAI Voice Agent Hackathon</div>
+  <h1>PayVoice Rescue</h1>
+  <div class="rule"></div>
+  <p>The call small firms avoid, made by a voice agent.</p>
+  <div class="ledger">
+    <div><span class="tool">lookup_invoice</span> <span class="res">→ $750.00, 30 days overdue</span></div>
+    <div><span class="tool">log_promise</span> <span class="res">→ PROM-20492-4K8QZR</span></div>
+    <div><span class="tool">create_deposit</span> <span class="res">→ link issued</span></div>
+  </div>
+  <div class="foot">Built on the AssemblyAI Voice Agent API</div>
+</body>
+</html>
