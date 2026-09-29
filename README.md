@@ -29,6 +29,12 @@ regulated and is explicitly out of scope.
 | `log_promise` | Records a promise-to-pay once the caller gives a date and an amount, and returns a reference. |
 | `create_deposit` | Issues a one-time payment link when the caller wants to pay now. |
 
+When the call ends, the page fetches that session back from AssemblyAI and
+shows the record: the promise and its reference, the caller's own words that
+produced it, the confidence they were heard with, each tool call with its
+duration, and the reply latency. It comes from the stored session rather than
+from what the page observed.
+
 Also in use: keyterms so invoice numbers and company names transcribe
 correctly, turn detection tuned so the agent waits rather than talking over the
 caller, JSON-Schema parameter hints so a phone number is read back digit by

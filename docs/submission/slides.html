@@ -80,7 +80,7 @@
   <h2>One call. Two acceptable endings.</h2>
   <div class="cols">
     <div class="card"><h3>Promise to pay</h3><p>The caller names a date. The agent confirms day, month and year back, then records it with a reference number.</p></div>
-    <div class="card"><h3>Pay now</h3><p>The caller wants to settle. The agent issues a one-time payment link and stops talking.</p></div>
+    <div class="card"><h3>Pay now</h3><p>The caller wants to settle. The agent issues a one-time payment link and stops talking. The link is mocked in this demo.</p></div>
   </div>
   <p class="lead" style="margin-top:36px">It confirms who is speaking, looks the invoice up before it will discuss a number, and keeps every reply to a sentence or two.</p>
   <div class="foot"><span>B2B invoice reminders</span><span>03</span></div>
@@ -104,6 +104,25 @@
 </section>
 
 <section class="slide">
+  <div class="eyebrow">After the call</div>
+  <h2>A promise is only worth what you can prove</h2>
+  <p class="lead">When the call ends, the record is fetched back from the session AssemblyAI stored, not assembled from what the page happened to see.</p>
+  <div class="cols" style="margin-top:36px">
+    <div class="card">
+      <h3>Promise to pay</h3>
+      <p><b>Pay by</b> 14 October 2026 · <b>$750.00</b><br>Ref PROM-20492-4K8QZR</p>
+      <p style="margin-top:14px;font-style:italic">"I can pay it on the fourteenth of October."</p>
+      <p style="margin-top:10px;color:#777673;font-size:17px">Heard with 91% confidence</p>
+    </div>
+    <div class="card">
+      <h3>What the agent did</h3>
+      <p class="mono" style="font-size:17px;line-height:1.9">lookup_invoice · 120 ms<br>log_promise · 95 ms<br>3 turns · median reply 1.1 s</p>
+    </div>
+  </div>
+  <div class="foot"><span>Sessions API · every turn, tool call and confidence</span><span>05</span></div>
+</section>
+
+<section class="slide">
   <div class="eyebrow">Business case</div>
   <h2>Sold to the person who makes the call today</h2>
   <ul>
@@ -113,7 +132,7 @@
     <li><b>Why voice:</b> email is ignored; a call gets a named person and a date</li>
     <li><b>Proven market:</b> Peakflo, Resolve Pay and Thoughtly already sell AI collection calls to larger firms</li>
   </ul>
-  <div class="foot"><span>The small end of a market that already pays</span><span>05</span></div>
+  <div class="foot"><span>The small end of a market that already pays</span><span>06</span></div>
 </section>
 
 <section class="slide">
@@ -128,7 +147,7 @@
     <li><b>Next:</b> a post-call record from the Sessions API — promise date, quoted words, confidence</li>
     <li><b>Next:</b> read the ledger from accounting software instead of a fixture</li>
   </ul>
-  <div class="foot"><span>PayVoice Rescue · muhammadegaa</span><span>06</span></div>
+  <div class="foot"><span>PayVoice Rescue · muhammadegaa</span><span>07</span></div>
 </section>
 
 </body>

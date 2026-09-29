@@ -818,16 +818,17 @@ function loadRecord(id, attempt = 0) {
     body.append(waiting)
     $('tab-record').classList.add('ready')
   }
+  // The session timeline is written after the call, and a couple of minutes
+  // is normal, so this waits five rather than declaring failure early.
+  const again = (next) => attempt < 75 && setTimeout(() => loadRecord(id, attempt + 1), next)
   fetch('/record/' + id)
     .then((res) => (res.status === 202 ? null : res.json()))
     .then((record) => {
       if (record) return renderRecord(record)
-      if (attempt < 20) return setTimeout(() => loadRecord(id, attempt + 1), 3000)
-      body.textContent = 'The call record is taking longer than usual.'
+      if (!again(4000)) body.textContent = 'The call record is taking longer than usual.'
     })
     .catch(() => {
-      if (attempt < 20) return setTimeout(() => loadRecord(id, attempt + 1), 3000)
-      body.textContent = 'Could not load the call record.'
+      if (!again(4000)) body.textContent = 'Could not load the call record.'
     })
 }
 

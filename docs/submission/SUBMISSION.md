@@ -6,11 +6,12 @@ Paste-ready text for the lablab submission form.
 
 PayVoice Rescue
 
-## Short description (233 characters)
+## Short description (249 characters)
 
 A voice agent that makes the call small firms avoid: chasing an overdue
-invoice. It confirms who is speaking, reads back the balance, records a dated
-promise-to-pay, and shows every tool call on screen as it happens.
+invoice. It takes a dated promise-to-pay, then hands back the record: the
+promise, the caller's own words that produced it, and the confidence it was
+heard with.
 
 ## Long description
 
@@ -30,6 +31,14 @@ on screen the moment it happens, with the arguments it chose and the result it
 got back, so nothing about the conversation is hidden behind a transcript.
 That matters in collections, where the difference between "they said they'd
 pay" and a dated, recorded commitment is the whole job.
+
+When the call ends, PayVoice does the part that matters in collections: it
+fetches that session back from AssemblyAI and shows the record. The promise
+with its date and reference, the caller's own words that produced it, the
+confidence those words were heard with, every tool call with how long it took,
+and how fast the agent replied. That record comes from the stored session, not
+from what the page happened to observe, which is the difference between a
+transcript and evidence.
 
 Under the hood it uses keyterms so invoice numbers and company names transcribe
 correctly, JSON-Schema parameter hints so a spoken phone number is captured
@@ -61,8 +70,9 @@ Business, Fintech, Productivity, Automation
 |---|---|---|
 | 0:00–0:30 | Title card, then the problem in plain words | "56% of US small businesses are carrying unpaid invoices, averaging $17,500. The owner knows who owes them. They still don't make the call." |
 | 0:30–2:30 | The live deployed URL. Start the call, play the debtor, agree to a date | Let the agent talk. Say as little as possible over it. Point out the ledger filling in as each tool fires. |
-| 2:30–3:30 | The Tools tab and the agent tab | "The agent cannot discuss a balance before it has looked the invoice up. Here is the promise it recorded, with the date it confirmed back to me." |
-| 3:30–4:30 | Slides: business case | Who it is for, what they pay today, how this is priced, why it needs voice. |
+| 2:30–3:00 | The Tools tab | "The agent cannot discuss a balance before it has looked the invoice up. Every call it made is here." |
+| 3:00–3:40 | End the call, open the Record tab and wait for it to fill | "This is fetched back from the session AssemblyAI stored: the promise, the words that produced it, and the confidence they were heard with. That is what a collections team keeps." |
+| 3:40–4:30 | Slides: business case | Who it is for, what they pay today, how this is priced, why it needs voice. |
 | 4:30–5:00 | Slides: scope and roadmap | "B2B only. Mocked data in this demo. Next: HTTP tools so it answers a real phone number, and a post-call record from the Sessions API." |
 
 Rules for the recording: one take if possible, screen capture with clean audio,
