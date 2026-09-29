@@ -35,11 +35,17 @@ produced it, the confidence they were heard with, each tool call with its
 duration, and the reply latency. It comes from the stored session rather than
 from what the page observed.
 
+The model fills in tool arguments and sometimes makes them up, so `log_promise`
+is checked in code before anything is recorded: it refuses a phone number the
+caller never said and a date in the past, and the agent has to ask again. The
+agent is also told today's date so it picks the right year. A refused attempt
+shows in the ledger as an error, and the record ignores it.
+
 Also in use: keyterms so invoice numbers and company names transcribe
 correctly, turn detection tuned so the agent waits rather than talking over the
-caller, a prompt that has the agent read phone numbers and promise dates back
-before recording them, and a 60-second session token so the API key never
-reaches the browser.
+caller, prompt rules that stop it discussing the invoice with the wrong person,
+offering discounts or plans, or arguing with someone who says they already
+paid, and a 60-second session token so the API key never reaches the browser.
 
 **Demo data is mocked.** Invoice 20492 for Acme Consulting, $750, 30 days
 overdue. No real customer data, no real money, no real phone calls.

@@ -40,11 +40,18 @@ and how fast the agent replied. That record comes from the stored session, not
 from what the page happened to observe, which is the difference between a
 transcript and evidence.
 
-Under the hood it uses keyterms so invoice numbers and company names
-transcribe correctly, a prompt that has the agent read phone numbers and
-promise dates back before it records them, turn detection tuned so the agent
-waits instead of talking over an annoyed caller, a 60-second session token so
-the API key never reaches the browser.
+A language model fills in tool arguments and will sometimes invent them, so
+the promise tool is checked in code before anything is recorded. It refuses a
+callback number the caller never said and a date that is already in the past,
+and the agent has to go back and ask. In testing, the agent tried to log a
+promise with "unknown" as the number, was refused, asked the caller, and then
+logged the real one. The record ignores the refused attempt.
+
+Under the hood it also uses keyterms so invoice numbers and company names
+transcribe correctly, turn detection tuned so the agent waits instead of
+talking over an annoyed caller, prompt rules that stop it discussing the
+invoice with the wrong person or offering discounts, and a 60-second session
+token so the API key never reaches the browser.
 
 Scope is deliberate. This is B2B invoice reminders, not consumer debt
 collection, which is heavily regulated. The demo runs on mocked invoice data:
