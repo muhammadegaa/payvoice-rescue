@@ -53,7 +53,7 @@ Business, Fintech, Productivity, Automation
 ## Links
 
 - GitHub: https://github.com/muhammadegaa/payvoice-rescue
-- Live demo: _(Vercel URL, added at deploy)_
+- Live demo: https://payvoice-rescue.vercel.app
 
 ## Video shot list (5:00 maximum)
 

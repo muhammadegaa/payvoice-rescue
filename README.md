@@ -9,7 +9,7 @@ screen as it happens, like a bank ledger.
 Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon)
 on the [Voice Agent API](https://www.assemblyai.com/docs/voice-agents/voice-agent-api).
 
-**Live demo:** _(added at deploy)_
+**Live demo:** https://payvoice-rescue.vercel.app
 
 ## Why this
 

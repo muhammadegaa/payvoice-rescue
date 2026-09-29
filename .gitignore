@@ -6,3 +6,4 @@ server.pid
 
 # Strategy notes, not part of the submission
 docs/idea-lock/
+.vercel

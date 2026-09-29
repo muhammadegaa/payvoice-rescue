@@ -1,0 +1,9 @@
+# Secrets and local state never belong in a deployment bundle. The platform
+# supplies ASSEMBLYAI_API_KEY through the project's environment instead, and
+# the agent id is resolved at runtime by publishing agents/payvoice.jsonc.
+.env
+agents/*.env
+.vercel
+docs/idea-lock
+server.log
+server.pid
