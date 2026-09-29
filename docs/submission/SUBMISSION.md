@@ -44,7 +44,7 @@ Under the hood it uses keyterms so invoice numbers and company names
 transcribe correctly, a prompt that has the agent read phone numbers and
 promise dates back before it records them, turn detection tuned so the agent
 waits instead of talking over an annoyed caller, a 60-second session token so
-the API key never reaches the browser, and a 5-minute limit on every call.
+the API key never reaches the browser.
 
 Scope is deliberate. This is B2B invoice reminders, not consumer debt
 collection, which is heavily regulated. The demo runs on mocked invoice data:

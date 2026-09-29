@@ -38,8 +38,8 @@ from what the page observed.
 Also in use: keyterms so invoice numbers and company names transcribe
 correctly, turn detection tuned so the agent waits rather than talking over the
 caller, a prompt that has the agent read phone numbers and promise dates back
-before recording them, a 60-second session token so the API key never reaches
-the browser, and a 5-minute limit on every call.
+before recording them, and a 60-second session token so the API key never
+reaches the browser.
 
 **Demo data is mocked.** Invoice 20492 for Acme Consulting, $750, 30 days
 overdue. No real customer data, no real money, no real phone calls.
