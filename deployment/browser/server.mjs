@@ -7,37 +7,23 @@
 
 import http from 'node:http'
 import {
-  aai, callRecord, loadEnv, publishAgent, readAgent, required, sessionTimeline, storedAgentId,
+  aai, callRecord, loadEnv, readAgent, required, sessionConfig, sessionTimeline,
 } from '../../lib.mjs'
 
 loadEnv()
 required('ASSEMBLYAI_API_KEY', 'get one at https://www.assemblyai.com/dashboard/api-keys')
 
-// A published id means the agent is managed elsewhere, so use it as it is.
-const AGENT = await (async () => {
+// The page configures its session inline from the agent file rather than
+// naming a stored agent. A stored agent is resolved per region, so an id
+// published from one place is not found from another; sending the config with
+// the session keeps the same agent working wherever the page is opened.
+const AGENT = (() => {
   const name = process.env.AGENT || 'minimal'
-  const known = storedAgentId(name)
-  if (known) {
-    try {
-      const agent = await aai(`/agents/${known}`)
-      return { id: known, name: agent.name || 'Your agent' }
-    } catch (error) {
-      console.error(`Could not load agent ${known}: ${error.message}`)
-      process.exit(1)
-    }
-  }
   const agent = readAgent(name)
-  try {
-    const { id, created } = await publishAgent(agent, { name, reuseByName: true })
-    console.log(`${created ? 'Created' : 'Updated'} "${agent.name}" from agents/${name}.jsonc`)
-    return { id, name: agent.name }
-  } catch (error) {
-    console.error(`Could not publish agents/${name}.jsonc: ${error.message}`)
-    process.exit(1)
-  }
+  return { name: agent.name, file: name, config: sessionConfig(agent) }
 })()
 
-console.log(`Agent: ${AGENT.id}`)
+console.log(`Agent: ${AGENT.name} (agents/${AGENT.file}.jsonc, sent with each session)`)
 
 // --- client ----------------------------------------------------------------
 // Stringified and served as /app.js.
@@ -386,10 +372,10 @@ async function start() {
       logEvent('up', 'input.audio')
     }
 
-    // Everything about the agent lives server-side; the session just names it.
+    // The agent's whole configuration travels with the session.
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'session.update', session: { agent_id: AGENT.id } }))
-      logEvent('up', 'session.update', AGENT.id)
+      ws.send(JSON.stringify({ type: 'session.update', session: AGENT.config }))
+      logEvent('up', 'session.update', AGENT.name)
     }
 
     ws.onmessage = ({ data }) => {
@@ -1088,15 +1074,8 @@ function publicAgent(agent) {
 // is this same function; there is no second copy of the page or the routes.
 export async function handler(req, res) {
   if (req.url === '/agent') {
-    try {
-      const agent = await aai(`/agents/${AGENT.id}`)
-      res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(JSON.stringify(publicAgent(agent)))
-    } catch (error) {
-      console.error(error.message)
-      res.writeHead(502, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ error: 'could not load the agent' }))
-    }
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify(publicAgent(AGENT.config)))
     return
   }
   if (req.url === '/token') {

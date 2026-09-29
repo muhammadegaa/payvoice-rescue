@@ -374,3 +374,22 @@ export function callRecord(timeline) {
     },
   }
 }
+
+// An agent file is the body of POST /v1/agents. The same fields configure a
+// session inline over the websocket, with two differences: the voice is a
+// plain id under output, and the stored-agent name has no meaning there.
+// Inline configuration needs no stored agent, so a page can open a session
+// without one having been published first.
+// https://www.assemblyai.com/docs/voice-agents/voice-agent-api/session-configuration
+export function sessionConfig(agent) {
+  const { name, voice, tools, ...rest } = structuredClone(agent)
+  const config = { ...rest }
+  if (voice?.voice_id) config.output = { ...(config.output ?? {}), voice: voice.voice_id }
+  if (tools) {
+    // This config reaches the browser, so tool credentials must not ride along.
+    config.tools = tools.map((tool) =>
+      tool.http ? { ...tool, http: { ...tool.http, headers: [] } } : tool
+    )
+  }
+  return config
+}
