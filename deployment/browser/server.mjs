@@ -7,7 +7,7 @@
 
 import http from 'node:http'
 import {
-  aai, callRecord, loadEnv, readAgent, required, sessionConfig, sessionTimeline,
+  aai, agentsWebsocket, callRecord, loadEnv, readAgent, required, sessionConfig, sessionTimeline,
 } from '../../lib.mjs'
 
 loadEnv()
@@ -20,7 +20,7 @@ required('ASSEMBLYAI_API_KEY', 'get one at https://www.assemblyai.com/dashboard/
 const AGENT = (() => {
   const name = process.env.AGENT || 'minimal'
   const agent = readAgent(name)
-  return { name: agent.name, file: name, config: sessionConfig(agent) }
+  return { name: agent.name, file: name, config: sessionConfig(agent), ws: agentsWebsocket() }
 })()
 
 console.log(`Agent: ${AGENT.name} (agents/${AGENT.file}.jsonc, sent with each session)`)
@@ -355,7 +355,7 @@ async function start() {
     const capture = await addWorklet(captureCtx, CAPTURE_WORKLET, 'capture')
     captureCtx.createMediaStreamSource(mic).connect(capture)
 
-    const url = new URL('wss://agents.assemblyai.com/v1/ws')
+    const url = new URL(AGENT.ws)
     url.searchParams.set('token', token)
     ws = new WebSocket(url)
     let ready = false

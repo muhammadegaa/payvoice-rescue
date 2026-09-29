@@ -192,8 +192,19 @@ export function readAgent(name) {
 
 // The API also answers on regional hosts; set AGENTS_API_BASE if your account
 // is pinned to one. Read per call, since .env loads after this import.
+// agents.assemblyai.com routes by where the caller is, and agents and
+// sessions live in the region that routing picked: an agent published from
+// one place is not found from another, and a session opened by a browser is
+// invisible to a server in the other region. Pinning one region keeps a
+// deployed page, its sessions and this process on the same side.
+// Regional hosts: agents.eu.assemblyai.com and agents.us.assemblyai.com.
 const agentsApi = () =>
-  process.env.AGENTS_API_BASE || 'https://agents.assemblyai.com/v1'
+  process.env.AGENTS_API_BASE || 'https://agents.eu.assemblyai.com/v1'
+
+// The websocket the browser opens has to be the same region as the API this
+// process talks to, so it is derived from the same base.
+export const agentsWebsocket = () =>
+  agentsApi().replace(/^http/, 'ws') + '/ws'
 
 export class ApiError extends Error {
   constructor(label, status, body) {
