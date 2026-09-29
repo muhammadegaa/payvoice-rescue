@@ -1081,7 +1081,9 @@ export async function handler(req, res) {
   }
   if (req.url === '/token') {
     try {
-      const token = await aai('/token?product=voice_agent&expires_in_seconds=60')
+      // The deployed URL is public and bills this key. Without a cap a session
+      // may run for the API's 3-hour maximum, so each call ends after 5 minutes.
+      const token = await aai('/token?product=voice_agent&expires_in_seconds=60&max_session_duration_seconds=300')
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify(token))
     } catch (error) {

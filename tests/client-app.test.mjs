@@ -17,3 +17,7 @@ test('server app contains tool handler wiring', () => {
   assert.ok(SOURCE.includes('logToolCall'))
   assert.ok(SOURCE.includes('logToolResult'))
 })
+
+test('a session token limits how long one call can run', () => {
+  assert.ok(SOURCE.includes('max_session_duration_seconds=300'))
+})
