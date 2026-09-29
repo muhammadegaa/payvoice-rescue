@@ -47,3 +47,28 @@ describe('parseJsonc', () => {
     })
   })
 })
+
+describe('PayVoice guardrails', () => {
+  const agent = readAgent('payvoice')
+  const prompt = agent.system_prompt
+
+  it('says nothing about the invoice to someone who is not Acme', () => {
+    assert.match(prompt, /wrong number/i)
+    assert.doesNotMatch(agent.greeting, /invoice/i)
+  })
+
+  it('does not argue with a caller who says they already paid', () => {
+    assert.match(prompt, /already paid/i)
+  })
+
+  it('cannot offer discounts, part payments or plans', () => {
+    assert.match(prompt, /discounts/i)
+    assert.match(prompt, /payment plans/i)
+  })
+
+  it('needs a specific date and a phone number the caller actually said', () => {
+    assert.match(prompt, /day and a month/i)
+    assert.match(prompt, /do not ask for the year/i)
+    assert.match(prompt, /never make up a phone number/i)
+  })
+})
