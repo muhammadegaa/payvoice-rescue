@@ -339,19 +339,10 @@ const median = (numbers) => {
   return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2)
 }
 
-// The caller often gives the date in one turn and the callback number in the
-// next, and the promise is recorded on the second. The quote should be the
-// words that gave the date, so look back from the tool call to the latest turn
-// that mentions one, and fall back to the tool call's own turn.
-const DATE_WORDS =
-  /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b\d{1,2}(st|nd|rd|th)\b|\b\d{1,2}\/\d{1,2}\b|\b(tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i
-
-function turnWithDate(turns, index) {
-  for (let i = index; i >= 0; i--) {
-    if (DATE_WORDS.test(turns[i].user_transcript ?? '')) return turns[i]
-  }
-  return turns[index]
-}
+// Searching back for a turn that mentions a date looks better and is wrong:
+// "I cannot pay on October 14th" and "May I ask something?" both match, so a
+// refusal or an aside gets quoted as the promise. The only honest quote is the
+// turn the promise was recorded on, shown with the rest of the call.
 
 export function callRecord(timeline) {
   const turns = timeline?.turns ?? []
@@ -368,7 +359,9 @@ export function callRecord(timeline) {
         duration_ms: call.duration_ms ?? null,
         is_error: Boolean(call.is_error || call.timed_out),
       })
-      if (call.is_error) continue
+      // A call that errored or timed out did not commit anything, whatever
+      // the arguments said.
+      if (call.is_error || call.timed_out) continue
       if (call.name === 'create_deposit') paying = true
       if (call.name === 'log_promise') {
         const result = parseResult(call.result)
@@ -376,10 +369,15 @@ export function callRecord(timeline) {
           invoice_id: call.arguments?.invoice_id ?? null,
           promise_date: call.arguments?.promise_date ?? null,
           amount_cents: call.arguments?.amount_cents ?? null,
+          phone_number: call.arguments?.phone_number ?? null,
           reference: result.reference ?? null,
-          // The words that produced the promise, not a paraphrase of them.
-          said: turnWithDate(turns, index).user_transcript ?? null,
-          confidence: turnWithDate(turns, index).user_confidence ?? null,
+          // What the caller said on the turn this was recorded on, with the
+          // confidence that turn was transcribed at. Neither is proof that
+          // the caller agreed to this date and amount, which is why every
+          // promise is flagged for a human to read.
+          said: turn.user_transcript ?? null,
+          confidence: turn.user_confidence ?? null,
+          needs_review: true,
         }
       }
     }
@@ -391,6 +389,11 @@ export function callRecord(timeline) {
     started_at_unix_ms: timeline?.started_at_unix_ms ?? null,
     promise,
     tools,
+    // Every caller turn, so the quoted line can be read in context rather
+    // than taken on trust.
+    transcript: turns
+      .filter((t) => t.user_transcript)
+      .map((t) => ({ text: t.user_transcript, confidence: t.user_confidence ?? null })),
     summary: {
       turns: turns.length,
       outcome: promise ? 'promise_to_pay' : paying ? 'paying_now' : 'no_commitment',

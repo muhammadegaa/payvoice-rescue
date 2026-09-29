@@ -6,12 +6,12 @@ Paste-ready text for the lablab submission form.
 
 PayVoice Rescue
 
-## Short description (233 characters)
+## Short description (252 characters)
 
-A voice agent that makes the call small firms avoid: chasing an overdue
-invoice. It takes a dated promise-to-pay, then hands back the record: the
-promise, the caller's own words that produced it, and the confidence it was
-heard with.
+A voice agent for the call small firms avoid: chasing an overdue invoice. It
+takes a dated promise-to-pay, refuses arguments the caller never said, and
+hands back a reviewable record of the call from the session AssemblyAI
+stored.
 
 ## Long description
 
@@ -19,43 +19,43 @@ Late payment is the quiet killer of small businesses. Most owners know exactly
 who owes them money and still put off the call, because collections is
 uncomfortable, repetitive work that nobody wants to do twice a week.
 
-PayVoice Rescue makes that call. It is a voice agent built on the AssemblyAI
-Voice Agent API for business-to-business invoice reminders. The debtor speaks
-normally; the agent confirms who it is talking to, looks up the invoice before
-it will discuss any number, states the balance in one sentence, and then does
-one of two things: records a promise-to-pay with a specific date, or issues a
-one-time payment link for the caller who wants to settle now.
+PayVoice Rescue is a browser prototype of that call, built on the AssemblyAI
+Voice Agent API for business-to-business invoice reminders. The debtor opens a
+link and speaks normally; the agent asks who it is speaking to, looks up the
+invoice, states the balance in one sentence, and then aims at one of two
+endings: a promise-to-pay with a specific date, or a payment link for the
+caller who wants to settle now. The link is simulated in this demo.
 
 The part judges can see is the ledger. Every tool call the agent makes appears
 on screen the moment it happens, with the arguments it chose and the result it
 got back, so nothing about the conversation is hidden behind a transcript.
-That matters in collections, where the difference between "they said they'd
-pay" and a dated, recorded commitment is the whole job.
 
-When the call ends, PayVoice does the part that matters in collections: it
-fetches that session back from AssemblyAI and shows the record. The promise
-with its date and reference, the caller's own words that produced it, the
-confidence those words were heard with, every tool call with how long it took,
-and how fast the agent replied. That record comes from the stored session, not
-from what the page happened to observe, which is the difference between a
-transcript and evidence.
+The harder problem is that a language model fills in those arguments, and will
+sometimes invent them. So the promise tool checks them in code before anything
+is recorded. A callback number whose digits do not appear in what the caller
+just said is refused, as is a date in the past or one that is not a real
+calendar date, and the agent has to go back and ask. The check is deliberately
+narrow: it matches the last ten digits against the caller's most recent turn,
+which catches the invented number this agent actually produced, and does not
+attempt to prove that the caller agreed to the debt.
 
-A language model fills in tool arguments and will sometimes invent them, so
-the promise tool is checked in code before anything is recorded. It refuses a
-callback number the caller never said and a date that is already in the past,
-and the agent has to go back and ask. In testing, the agent tried to log a
-promise with "unknown" as the number, was refused, asked the caller, and then
-logged the real one. The record ignores the refused attempt.
+When the call ends, the page fetches that session back from AssemblyAI and
+shows a record: the promise with its date, amount and reference, the caller's
+turn it was recorded on, the confidence that turn was transcribed at, every
+caller turn so the quote can be read in context, each tool call with how long
+it took, and the reply latency. Refused and timed-out attempts do not count as
+commitments. Every promise is flagged for a human to read, because turn
+confidence is a transcription measure, not proof that someone agreed.
 
-Under the hood it also uses keyterms so invoice numbers and company names
-transcribe correctly, turn detection tuned so the agent waits instead of
-talking over an annoyed caller, prompt rules that stop it discussing the
-invoice with the wrong person or offering discounts, and a 60-second session
-token so the API key never reaches the browser.
+Also in use: keyterms configured for invoice numbers and company names, turn
+detection tuned for silence and barge-in, JSON-Schema parameter hints on the
+spoken phone number, and a session token minted server-side so the API key
+never reaches the browser.
 
 Scope is deliberate. This is B2B invoice reminders, not consumer debt
 collection, which is heavily regulated. The demo runs on mocked invoice data:
-no real customer, no real money.
+one fixture invoice, no real customer, no real money, and no outbound phone
+call — the debtor comes to the link.
 
 ## Technology tags
 

@@ -252,11 +252,14 @@ const TOOLS = {
     if (invoice_id !== '20492') {
       return { error: `Invoice ${invoice_id} not found. Ask the caller to repeat the invoice number slowly.` }
     }
+    // A fixed due date drifts out of step with the days overdue the agent
+    // reads out, so the fixture is 30 days before whenever the demo runs.
+    const due = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     return {
       invoice_id,
       customer_name: 'Acme Consulting',
       amount_cents: 75000,
-      due_date: '2026-08-15',
+      due_date: due.toISOString().slice(0, 10),
       days_overdue: 30,
       status: 'overdue'
     }
@@ -334,6 +337,7 @@ async function start() {
   $('btn').disabled = true
   $('mic').disabled = true
   setStatus('connecting')
+  clearToolFeed()
 
   try {
     // The API key never reaches the page; this token expires in 60 seconds.
@@ -541,7 +545,8 @@ function reset() {
   clearPartials()
   open.forEach((run) => paint(run, true))
   open.clear()
-  clearToolFeed()
+  // The ledger stays after the call: it is what the bookkeeper reads once the
+  // caller has hung up. The next call clears it.
   agentLoaded = false
   toolsLoaded = false
   $('btn').disabled = false
@@ -786,14 +791,22 @@ function renderRecord(record) {
     if (typeof p.amount_cents === 'number') card.append(recordRow('Amount', money(p.amount_cents)))
     if (p.invoice_id) card.append(recordRow('Invoice', p.invoice_id))
     if (p.reference) card.append(recordRow('Reference', p.reference))
+    if (p.phone_number) card.append(recordRow('Callback', p.phone_number, 'mono'))
     if (p.said) {
+      card.append(recordRow('Said on that turn', ''))
       const quote = document.createElement('blockquote')
       quote.className = 'rec-quote'
       quote.textContent = '"' + p.said + '"'
       card.append(quote)
       if (typeof p.confidence === 'number') {
-        card.append(recordRow('Heard with confidence', (p.confidence * 100).toFixed(0) + '%'))
+        card.append(recordRow('Transcribed at', (p.confidence * 100).toFixed(0) + '% confidence'))
       }
+    }
+    if (p.needs_review) {
+      const flag = document.createElement('div')
+      flag.className = 'rec-review'
+      flag.textContent = 'Needs review. Transcription confidence is not proof the caller agreed; read the turns below.'
+      card.append(flag)
     }
     body.append(card)
   }
@@ -810,6 +823,19 @@ function renderRecord(record) {
       ))
     }
     body.append(list)
+  }
+
+  if (record.transcript?.length) {
+    const said = document.createElement('div')
+    said.className = 'rec-card'
+    said.append(recordRow('What the caller said', String(record.transcript.length) + ' turns'))
+    for (const line of record.transcript) {
+      said.append(recordRow(
+        line.text,
+        typeof line.confidence === 'number' ? (line.confidence * 100).toFixed(0) + '%' : ''
+      ))
+    }
+    body.append(said)
   }
 
   const stats = document.createElement('div')
@@ -1022,6 +1048,9 @@ const HTML = `<!DOCTYPE html>
   .rec-row.err .rec-value { color: var(--error); }
   .rec-quote { font-size: 14px; line-height: 1.45; color: var(--text-dark);
                border-left: 2px solid var(--cobolt-300); padding: 4px 0 4px 10px; margin: 4px 0; }
+  .rec-review { font-size: 12px; line-height: 1.45; color: var(--text-muted);
+                background: var(--surface-alt); border-radius: var(--radius-sm);
+                padding: 8px 10px; margin-top: 4px; }
   .tab.ready::after { content: "•"; color: var(--cobolt-500); margin-left: 4px; }
 </style>
 </head>

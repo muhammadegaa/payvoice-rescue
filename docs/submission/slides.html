@@ -79,10 +79,10 @@
   <div class="eyebrow">The product</div>
   <h2>One call. Two acceptable endings.</h2>
   <div class="cols">
-    <div class="card"><h3>Promise to pay</h3><p>The caller names a date. The agent confirms day, month and year back, then records it with a reference number.</p></div>
-    <div class="card"><h3>Pay now</h3><p>The caller wants to settle. The agent issues a one-time payment link and stops talking. The link is mocked in this demo.</p></div>
+    <div class="card"><h3>Promise to pay</h3><p>The caller names a date. The agent records it with an amount, a callback number and a reference, then repeats the date back.</p></div>
+    <div class="card"><h3>Pay now</h3><p>The caller wants to settle. The agent issues a payment link and stops talking. The link is simulated in this demo.</p></div>
   </div>
-  <p class="lead" style="margin-top:36px">It confirms who is speaking, looks the invoice up before it will discuss a number, and keeps every reply to a sentence or two.</p>
+  <p class="lead" style="margin-top:36px">It asks who is speaking, looks the invoice up before discussing a number, and keeps every reply to a sentence or two.</p>
   <div class="foot"><span>B2B invoice reminders</span><span>03</span></div>
 </section>
 
@@ -92,31 +92,31 @@
   <div class="mono">
     <div><span class="tool">lookup_invoice</span> {"invoice_id":"20492"} <span class="res">→ $750.00, 30 days overdue</span></div>
     <div><span class="tool">log_promise</span> {"promise_date":"2026-10-14"} <span class="res">→ PROM-20492-4K8QZR</span></div>
-    <div><span class="tool">create_deposit</span> {"amount_cents":75000} <span class="res">→ secure link issued</span></div>
+    <div><span class="tool">create_deposit</span> {"amount_cents":75000} <span class="res">→ simulated link</span></div>
   </div>
   <ul style="margin-top:40px">
-    <li><b>Keyterms</b> so invoice numbers and company names transcribe correctly</li>
-    <li><b>Tool guards</b> the promise is refused if the phone number was never said or the date is in the past</li>
-    <li><b>Turn detection</b> tuned to wait rather than talk over an annoyed caller</li>
-    <li><b>60-second session tokens</b> so the API key never reaches the browser</li>
+    <li><b>Tool guards</b> a promise is refused if the callback number was never said, or the date is past or not a real date</li>
+    <li><b>Keyterms</b> configured for invoice numbers and company names</li>
+    <li><b>Turn detection</b> tuned for silence windows and barge-in</li>
+    <li><b>Session tokens</b> minted server-side, so the API key never reaches the browser</li>
   </ul>
   <div class="foot"><span>AssemblyAI Voice Agent API · Node, no dependencies</span><span>04</span></div>
 </section>
 
 <section class="slide">
   <div class="eyebrow">After the call · example record</div>
-  <h2>A promise is only worth what you can prove</h2>
-  <p class="lead">When the call ends, the record is fetched back from the session AssemblyAI stored, not assembled from what the page happened to see.</p>
+  <h2>A promise a human can check</h2>
+  <p class="lead">When the call ends, the record is fetched back from the session AssemblyAI stored, and every promise is flagged for review rather than presented as settled.</p>
   <div class="cols" style="margin-top:36px">
     <div class="card">
-      <h3>Promise to pay</h3>
+      <h3>Promise to pay · needs review</h3>
       <p><b>Pay by</b> 14 October 2026 · <b>$750.00</b><br>Ref PROM-20492-4K8QZR</p>
       <p style="margin-top:14px;font-style:italic">"I can pay it on the fourteenth of October."</p>
-      <p style="margin-top:10px;color:#777673;font-size:17px">Heard with 91% confidence</p>
+      <p style="margin-top:10px;color:#777673;font-size:17px">The turn it was recorded on, transcribed at 91%. Confidence measures transcription, not agreement.</p>
     </div>
     <div class="card">
-      <h3>What the agent did</h3>
-      <p class="mono" style="font-size:17px;line-height:1.9">lookup_invoice · 120 ms<br>log_promise · 95 ms<br>3 turns · median reply 1.1 s</p>
+      <h3>Beside it</h3>
+      <p style="font-size:20px;line-height:1.4">Every caller turn, so the quote is read in context. Each tool call and how long it took. Refused and timed-out attempts never become the promise.</p>
     </div>
   </div>
   <div class="foot"><span>Illustrative example of the record · from the Sessions API</span><span>05</span></div>

@@ -63,9 +63,11 @@ describe('callRecord', () => {
       invoice_id: '20492',
       promise_date: '2026-10-14',
       amount_cents: 75000,
+      phone_number: null,
       reference: 'PROM-20492-4K8QZR',
       said: 'I can pay it on the fourteenth of October.',
       confidence: 0.91,
+      needs_review: true,
     })
   })
 
@@ -129,7 +131,8 @@ describe('callRecord', () => {
 })
 
 // A promise is often made over several turns: the date in one, the callback
-// number in the next. The quote must be the words that gave the date.
+// number in the next. The record quotes the turn it was recorded on and keeps
+// the rest of the call beside it, rather than guessing which turn mattered.
 const turn = (user_transcript, user_confidence, tool_calls = []) => ({
   user_transcript, user_confidence, agent_text: '', time_to_first_audio_ms: 900, tool_calls,
 })
@@ -139,7 +142,7 @@ const call = (name, args, result, is_error = false) => ({
 const promiseArgs = { invoice_id: '20492', promise_date: '2026-10-14', amount_cents: 75000 }
 
 describe('callRecord quotes the words that made the promise', () => {
-  it('uses the turn where the caller gave the date, not the later turn that gave the phone number', () => {
+  it('quotes the turn it was recorded on and keeps the date turn in the transcript', () => {
     const record = callRecord({
       session_id: 'sess_1',
       turns: [
@@ -154,8 +157,10 @@ describe('callRecord quotes the words that made the promise', () => {
       ],
     })
     assert.strictEqual(record.promise.reference, 'PROM-20492-ABC')
-    assert.strictEqual(record.promise.said, 'I can pay it on the 14th of October.')
-    assert.strictEqual(record.promise.confidence, 0.93)
+    assert.strictEqual(record.promise.said, 'My number is 415-555-0134.')
+    assert.ok(record.transcript.some((t) => t.text === 'I can pay it on the 14th of October.'))
+    // The confidence belongs to the turn that is quoted, not to another one.
+    assert.strictEqual(record.promise.confidence, 0.99)
     assert.strictEqual(record.summary.outcome, 'promise_to_pay')
   })
 
@@ -173,24 +178,45 @@ describe('callRecord quotes the words that made the promise', () => {
     assert.strictEqual(record.summary.outcome, 'no_commitment')
   })
 
-  it('uses the same turn when the date and the tool call are in it', () => {
+  it('quotes the turn the promise was recorded on, never a livelier earlier one', () => {
     const record = callRecord({
       turns: [
-        turn('I will pay on October 14th, my number is 415-555-0134.', 0.9, [
-          call('log_promise', { ...promiseArgs, phone_number: '+14155550134' }, { reference: 'PROM-1' }),
-        ]),
+        turn('I cannot pay on October 14th.', 0.6),
+        turn('May I ask something first?', 0.99, [call('log_promise', promiseArgs, { reference: 'PROM-1' })]),
       ],
     })
-    assert.strictEqual(record.promise.said, 'I will pay on October 14th, my number is 415-555-0134.')
+    // Picking the turn that merely mentions a date would attribute a refusal
+    // to a recorded promise, which is the opposite of evidence.
+    assert.strictEqual(record.promise.said, 'May I ask something first?')
+    assert.strictEqual(record.promise.confidence, 0.99)
   })
 
-  it('falls back to the turn of the tool call when no earlier turn mentions a date', () => {
+  it('keeps every caller turn so the quote can be read in context', () => {
     const record = callRecord({
       turns: [
-        turn('Yes.', 0.99),
-        turn('Sure, go ahead.', 0.95, [call('log_promise', promiseArgs, { reference: 'PROM-2' })]),
+        turn('Yes, this is Acme.', 0.97),
+        turn('I can pay on October 14th.', 0.91, [call('log_promise', promiseArgs, { reference: 'PROM-2' })]),
       ],
     })
-    assert.strictEqual(record.promise.said, 'Sure, go ahead.')
+    assert.deepStrictEqual(record.transcript, [
+      { text: 'Yes, this is Acme.', confidence: 0.97 },
+      { text: 'I can pay on October 14th.', confidence: 0.91 },
+    ])
+  })
+
+  it('marks a recorded promise as needing review', () => {
+    const record = callRecord({
+      turns: [turn('October 14th.', 0.9, [call('log_promise', promiseArgs, { reference: 'PROM-3' })])],
+    })
+    assert.strictEqual(record.promise.needs_review, true)
+  })
+
+  it('does not count a timed-out tool call as a commitment', () => {
+    const timedOut = call('log_promise', promiseArgs, { reference: 'PROM-4' })
+    timedOut.timed_out = true
+    const record = callRecord({ turns: [turn('October 14th.', 0.9, [timedOut])] })
+    assert.strictEqual(record.promise, null)
+    assert.strictEqual(record.summary.outcome, 'no_commitment')
+    assert.strictEqual(record.tools[0].is_error, true)
   })
 })
