@@ -6,7 +6,7 @@ Paste-ready text for the lablab submission form.
 
 PayVoice Rescue
 
-## Short description (249 characters)
+## Short description (233 characters)
 
 A voice agent that makes the call small firms avoid: chasing an overdue
 invoice. It takes a dated promise-to-pay, then hands back the record: the
@@ -40,11 +40,11 @@ and how fast the agent replied. That record comes from the stored session, not
 from what the page happened to observe, which is the difference between a
 transcript and evidence.
 
-Under the hood it uses keyterms so invoice numbers and company names transcribe
-correctly, JSON-Schema parameter hints so a spoken phone number is captured
-digit by digit rather than guessed, turn detection tuned so the agent waits
-instead of talking over an annoyed caller, and a 60-second session token so the
-API key never reaches the browser.
+Under the hood it uses keyterms so invoice numbers and company names
+transcribe correctly, a prompt that has the agent read phone numbers and
+promise dates back before it records them, turn detection tuned so the agent
+waits instead of talking over an annoyed caller, a 60-second session token so
+the API key never reaches the browser, and a 5-minute limit on every call.
 
 Scope is deliberate. This is B2B invoice reminders, not consumer debt
 collection, which is heavily regulated. The demo runs on mocked invoice data:
@@ -73,7 +73,7 @@ Business, Fintech, Productivity, Automation
 | 2:30–3:00 | The Tools tab | "The agent cannot discuss a balance before it has looked the invoice up. Every call it made is here." |
 | 3:00–3:40 | End the call, open the Record tab and wait for it to fill | "This is fetched back from the session AssemblyAI stored: the promise, the words that produced it, and the confidence they were heard with. That is what a collections team keeps." |
 | 3:40–4:30 | Slides: business case | Who it is for, what they pay today, how this is priced, why it needs voice. |
-| 4:30–5:00 | Slides: scope and roadmap | "B2B only. Mocked data in this demo. Next: HTTP tools so it answers a real phone number, and a post-call record from the Sessions API." |
+| 4:30–5:00 | Slides: scope and roadmap | "B2B only. Mocked data in this demo. Next: HTTP tools so it answers a real phone number, and a webhook that sends the record to the collections team when a call ends." |
 
 Rules for the recording: one take if possible, screen capture with clean audio,
 no background music, and say out loud that the data is mocked.
